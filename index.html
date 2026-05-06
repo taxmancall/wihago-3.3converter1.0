@@ -119,9 +119,9 @@ tr.clickable:hover td{background:#eff6ff}
           </div>
         </div>
         <div class="field"><label>금액 기준</label>
-          <select id="amtBase">
+          <select id="amtBase" onchange="updateAmtLabel()">
             <option value="gross">세전 지급액 (원금)</option>
-            <option value="net">세후 지급액 (역산)</option>
+            <option value="net">세후 차인지급액 (역산)</option>
           </select>
         </div>
       </div>
@@ -167,7 +167,11 @@ tr.clickable:hover td{background:#eff6ff}
       <div class="mapping-grid">
         <div class="mapping-item"><label>소득자명 *</label><select id="mapName"></select><div class="auto-tag" id="autoName"></div></div>
         <div class="mapping-item"><label>주민등록번호 *</label><select id="mapRrn"></select><div class="auto-tag" id="autoRrn"></div></div>
-        <div class="mapping-item"><label>지급액(원금) *</label><select id="mapAmt"></select><div class="auto-tag" id="autoAmt"></div></div>
+        <div class="mapping-item">
+          <label id="amtLabel">지급액(원금) *</label>
+          <select id="mapAmt"></select>
+          <div class="auto-tag" id="autoAmt"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -509,6 +513,9 @@ document.getElementById('btnConvert').onclick = function(){
   var incomeType = document.getElementById('incomeType').value;
   var taxRateVal = parseFloat(document.getElementById('taxRate').value);
   var amtBase    = document.getElementById('amtBase').value;
+  // 라벨 동적 변경
+  var amtLbl = document.getElementById('amtLabel');
+  if(amtLbl) amtLbl.textContent = amtBase === 'net' ? '세후 차인지급액 * (역산)' : '세전 지급액(원금) *';
 
   if(!attrMonth||!payDate){ alert('귀속년월과 지급년월일을 입력하세요.'); return; }
 
@@ -516,12 +523,12 @@ document.getElementById('btnConvert').onclick = function(){
   dataRows.forEach(function(row, i){
     var name   = String(row[nameIdx]||'').trim();
     var rrnRaw = String(row[rrnIdx] ||'').trim().replace(/[^0-9]/g,'');
-    var amtRaw = parseFloat(String(row[amtIdx]||'').replace(/[,\s]/g,'')) || 0;
+    var amtRaw = parseFloat(String(row[amtIdx]||'').replace(/[,\s원정원\u20a9]/g,'').replace(/[^0-9.-]/g,'')) || 0;
     if(!name && !rrnRaw) return;
 
     var gross;
     if(amtBase === 'net'){
-      gross = Math.round(amtRaw / (1 - taxRateVal/100 * 1.1));
+      gross = Math.round(amtRaw / (1 - taxRateVal / 100)); // 세후→세전: 예)3.3%→ /0.967
     } else {
       gross = Math.round(amtRaw);
     }
@@ -733,6 +740,18 @@ function buildXLS(){
 }
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────
+function updateAmtLabel(){
+  var amtBase = document.getElementById('amtBase').value;
+  var lbl = document.getElementById('amtLabel');
+  if(lbl) lbl.textContent = amtBase === 'net' ? '세후 차인지급액 * (역산)' : '세전 지급액(원금) *';
+  // 자동인식 키워드도 교체
+  if(amtBase === 'net'){
+    AMT_KW = ['차인지급','차인지급액','실지급','실수령','세후','net'];
+  } else {
+    AMT_KW = ['총급여','총 급여','지급총액','원금','지급금액','지급액','급여액','인건비','세전금액','총지급'];
+  }
+  if(typeof buildMappingDropdowns === 'function' && headers.length > 0) buildMappingDropdowns();
+}
 function show(id){ document.getElementById(id).classList.remove('hidden'); }
 function hide(id){ document.getElementById(id).classList.add('hidden'); }
 function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

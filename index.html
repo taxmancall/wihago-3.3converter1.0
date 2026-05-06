@@ -323,35 +323,50 @@ function scoreRow(r){
 }
 
 function autoDetectHeader(){
-  // 전략: 아래 행에 숫자/실제 데이터가 존재하는 행 중 키워드 점수가 높은 행 선택
-  // 병합셀 환경에서는 행 전체를 합쳐서 점수 계산
-  var best = -1, bestScore = 0;
-  var limit = Math.min(allRows.length - 1, 10);
-  for(var ri = 0; ri < limit; ri++){
-    // ri 이후에 실제 데이터(숫자)가 있는지 확인
-    var hasDataBelow = false;
-    for(var di = ri+1; di < Math.min(ri+4, allRows.length); di++){
-      var drow = allRows[di];
-      for(var ci2 = 0; ci2 < drow.length; ci2++){
-        var v = String(drow[ci2]||'').replace(/,/g,'');
-        if(v && !isNaN(parseFloat(v)) && isFinite(v)){ hasDataBelow = true; break; }
-      }
-      if(hasDataBelow) break;
-    }
-    if(!hasDataBelow) continue;
+  // 전략:
+  // 1. 실제 데이터(이름+주민번호 또는 숫자금액)가 시작되는 첫 행을 찾음
+  // 2. 그 행의 바로 직전 행이 진짜 헤더
+  // 이 방법이 1행 타이틀 / 2행 대분류 / 3행 대분류 / 4행 실제헤더 구조에서 정확함
 
-    // 이 행 + 위 행들 합쳐서 키워드 점수 계산 (병합셀 대응)
-    var combined = [];
-    for(var si = Math.max(0, ri-2); si <= ri; si++){
-      combined = combined.concat(allRows[si]);
+  var dataStartRow = -1;
+  var limit = Math.min(allRows.length, 15);
+
+  for(var ri = 1; ri < limit; ri++){
+    var row = allRows[ri];
+    var numCount = 0, textCount = 0;
+    for(var ci2 = 0; ci2 < row.length; ci2++){
+      var v = String(row[ci2]||'').trim();
+      if(!v) continue;
+      var num = parseFloat(v.replace(/,/g,''));
+      if(!isNaN(num) && isFinite(num) && num > 0) numCount++;
+      else if(v.length >= 2) textCount++;
     }
-    var sc = 0;
-    var s = combined.join(' ');
-    HDR_KEYWORDS.forEach(function(k){ if(s.indexOf(k) >= 0) sc++; });
-    if(sc > bestScore){ bestScore = sc; best = ri; }
+    // 이름처럼 생긴 텍스트(2글자 이상) + 숫자가 함께 있으면 데이터 행
+    if(numCount >= 1 && textCount >= 1){
+      dataStartRow = ri;
+      break;
+    }
+    // 또는 주민번호 패턴이 있으면 데이터 행
+    var rowStr = row.join(' ');
+    if(/\d{6}-\d{7}|\d{13}/.test(rowStr)){
+      dataStartRow = ri;
+      break;
+    }
   }
-  if(best >= 0 && bestScore >= 1) selectHeaderRow(best);
-  else if(allRows.length > 1) selectHeaderRow(0); // 폴백
+
+  if(dataStartRow > 0){
+    // 데이터 시작 직전 행이 헤더
+    selectHeaderRow(dataStartRow - 1);
+  } else {
+    // 폴백: 기존 키워드 방식
+    var best = -1, bestScore = 0;
+    for(var ri = 0; ri < Math.min(allRows.length, 10); ri++){
+      var sc = scoreRow(allRows[ri]);
+      if(sc > bestScore){ bestScore = sc; best = ri; }
+    }
+    if(best >= 0 && bestScore >= 2) selectHeaderRow(best);
+    else selectHeaderRow(0);
+  }
 }
 
 function selectHeaderRow(ri){
@@ -393,9 +408,9 @@ function selectHeaderRow(ri){
 }
 
 // ── 컬럼 매핑 ─────────────────────────────────────────────────────────────
-var NAME_KW = ['이름','성명','관리사명','관리사성명','제공인력','소득자명','직원명','근로자명'];
+var NAME_KW = ['관리사성명','제공인력','소득자명','이름','성명','관리사명','직원명','근로자명','수급자명'];
 var RRN_KW  = ['주민번호','주민등록번호','주민','식별번호'];
-var AMT_KW  = ['총급여','총 급여','지급금액','원금','지급액','급여액','인건비','차인지급','세전금액','금액'];
+var AMT_KW  = ['총급여','총 급여','지급총액','원금','지급금액','지급액','급여액','인건비','차인지급','세전금액','총지급'];
 
 function buildMappingDropdowns(){
   ['mapName','mapRrn','mapAmt'].forEach(function(id){

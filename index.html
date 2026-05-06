@@ -18,7 +18,7 @@ h1{font-size:22px;font-weight:700}
 .step-badge{background:var(--primary);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
 .card-body{padding:16px 18px}
 /* 드롭존 */
-.dropzone{border:2px dashed #94a3b8;border-radius:8px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;user-select:none}
+.dropzone{border:2px dashed #94a3b8;border-radius:8px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;user-select:none;display:block;width:100%}
 .dropzone.over{border-color:var(--primary);background:#eff6ff}
 .dropzone:hover{border-color:var(--primary)}
 .dropzone>*{pointer-events:none}
@@ -131,11 +131,11 @@ tr.clickable:hover td{background:#eff6ff}
   <div class="card">
     <div class="card-header"><span class="step-badge">2</span> 엑셀 파일 업로드</div>
     <div class="card-body">
-      <div class="dropzone" id="dropzone">
+      <label class="dropzone" id="dropzone" for="fileInput" style="display:block">
         <div class="drop-icon">📂</div>
         <div class="drop-label" id="dropLabel">여기에 파일을 드래그하거나 클릭하세요</div>
         <div class="drop-hint">xlsx / xls / csv 지원</div>
-      </div>
+      </label>
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
     </div>
   </div>
@@ -224,7 +224,7 @@ var headers = [], dataRows = [], convertedData = [];
 var dz = document.getElementById('dropzone');
 var fi = document.getElementById('fileInput');
 
-dz.onclick = function(){ fi.click(); };
+// label[for="fileInput"] 방식으로 클릭 처리 - JS onclick 불필요
 fi.onchange = function(){ if(fi.files && fi.files[0]) handleFile(fi.files[0]); };
 
 document.addEventListener('dragover', function(e){ e.preventDefault(); });

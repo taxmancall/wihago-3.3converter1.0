@@ -323,12 +323,35 @@ function scoreRow(r){
 }
 
 function autoDetectHeader(){
+  // 전략: 아래 행에 숫자/실제 데이터가 존재하는 행 중 키워드 점수가 높은 행 선택
+  // 병합셀 환경에서는 행 전체를 합쳐서 점수 계산
   var best = -1, bestScore = 0;
-  for(var ri=0; ri<Math.min(allRows.length, 10); ri++){
-    var sc = scoreRow(allRows[ri]);
+  var limit = Math.min(allRows.length - 1, 10);
+  for(var ri = 0; ri < limit; ri++){
+    // ri 이후에 실제 데이터(숫자)가 있는지 확인
+    var hasDataBelow = false;
+    for(var di = ri+1; di < Math.min(ri+4, allRows.length); di++){
+      var drow = allRows[di];
+      for(var ci2 = 0; ci2 < drow.length; ci2++){
+        var v = String(drow[ci2]||'').replace(/,/g,'');
+        if(v && !isNaN(parseFloat(v)) && isFinite(v)){ hasDataBelow = true; break; }
+      }
+      if(hasDataBelow) break;
+    }
+    if(!hasDataBelow) continue;
+
+    // 이 행 + 위 행들 합쳐서 키워드 점수 계산 (병합셀 대응)
+    var combined = [];
+    for(var si = Math.max(0, ri-2); si <= ri; si++){
+      combined = combined.concat(allRows[si]);
+    }
+    var sc = 0;
+    var s = combined.join(' ');
+    HDR_KEYWORDS.forEach(function(k){ if(s.indexOf(k) >= 0) sc++; });
     if(sc > bestScore){ bestScore = sc; best = ri; }
   }
-  if(best >= 0 && bestScore >= 2) selectHeaderRow(best);
+  if(best >= 0 && bestScore >= 1) selectHeaderRow(best);
+  else if(allRows.length > 1) selectHeaderRow(0); // 폴백
 }
 
 function selectHeaderRow(ri){
@@ -341,9 +364,12 @@ function selectHeaderRow(ri){
 
   headers = hdrRow.map(function(c, ci){
     var v = String(c).trim();
-    // 빈 셀이고 위 행에 값이 있으면 위 행 값 사용 (2행 헤더 병합 처리)
-    if(!v && prevRow && String(prevRow[ci]||'').trim()){
-      v = String(prevRow[ci]).trim();
+    // 빈 셀이면 위 행들을 최대 3개까지 탐색 (병합셀 대응)
+    if(!v){
+      for(var si = ri-1; si >= Math.max(0, ri-3); si--){
+        var upVal = String(allRows[si][ci]||'').trim();
+        if(upVal){ v = upVal; break; }
+      }
     }
     return v || ('열'+(ci+1));
   });
